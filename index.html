@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>一朵花的時間 待辦追蹤</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+/* Layout: 單欄追蹤表。上方總覽 checklist（各組進度、逾期與近期期限），下方依組別列出每項待辦，含勾選與辦理情形說明 */
+:root {
+  --bg: #F3F6F5;
+  --surface: #FFFFFF;
+  --ink: #1C2A2D;
+  --muted: #5B6B6F;
+  --line: #D5DEDC;
+  --stream: #2F6E7E;
+  --stream-soft: #E1EDEF;
+  --sulfur: #B8901C;
+  --sulfur-soft: #FBF2D4;
+  --petal: #B94E70;
+  --petal-soft: #F7E4EA;
+  --good: #2E7D5B;
+  --good-soft: #E1F1E8;
+  --serif: "Noto Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
+  --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111A1C; --surface: #192427; --ink: #E5ECEB; --muted: #9DB0B3; --line: #2C3A3D;
+    --stream: #72B6C6; --stream-soft: #1D3236; --sulfur: #E2C25A; --sulfur-soft: #35301A;
+    --petal: #E78BA8; --petal-soft: #3A2430; --good: #66C99C; --good-soft: #1B3328;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111A1C; --surface: #192427; --ink: #E5ECEB; --muted: #9DB0B3; --line: #2C3A3D;
+  --stream: #72B6C6; --stream-soft: #1D3236; --sulfur: #E2C25A; --sulfur-soft: #35301A;
+  --petal: #E78BA8; --petal-soft: #3A2430; --good: #66C99C; --good-soft: #1B3328;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.7; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 56px; }
+header { display: grid; gap: 6px; margin-bottom: 22px; }
+.eyebrow { font-size: 13px; letter-spacing: .12em; color: var(--muted); margin: 0; }
+h1 { font-family: var(--serif); font-size: clamp(26px, 5.4vw, 36px); line-height: 1.3; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; font-size: 15px; }
+.status { font-size: 14px; color: var(--muted); min-height: 1.6em; margin: 4px 0 0; }
+.status.warn { color: var(--petal); }
+
+/* 總覽 */
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; }
+.overview h2, section h2 { font-family: var(--serif); font-size: 21px; margin: 0; text-wrap: balance; }
+.total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.total .big { font-family: var(--serif); font-size: 30px; font-variant-numeric: tabular-nums; }
+.total .muted { color: var(--muted); font-size: 14px; }
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto; gap: 10px; align-items: center; font-size: 15px; }
+.bar a { color: var(--ink); text-decoration: none; min-width: 0; }
+.bar a:hover { color: var(--stream); }
+.track { height: 10px; background: var(--stream-soft); border-radius: 999px; overflow: hidden; }
+.fill { height: 100%; background: var(--stream); border-radius: 999px; width: 0; transition: width .3s; }
+.bar .n { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.due-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.due-list li { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline; font-size: 15px; }
+.due-list .who { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.due-list .t { min-width: 0; }
+.empty { color: var(--muted); font-size: 15px; margin: 0; }
+h3 { font-size: 15px; margin: 0 0 6px; color: var(--muted); font-weight: 500; letter-spacing: .04em; }
+
+/* 組別 */
+section { margin-top: 30px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-bottom: 10px; }
+.sec-head .n { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.task { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 4px 10px; }
+.task.overdue { border-left: 4px solid var(--petal); }
+.task.soon { border-left: 4px solid var(--sulfur); }
+.task.done { border-left: 4px solid var(--good); }
+.task input[type=checkbox] { width: 20px; height: 20px; margin-top: 4px; accent-color: var(--good); cursor: pointer; }
+.task .body { min-width: 0; }
+.line1 { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.date { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--stream); white-space: nowrap; }
+.chip { font-size: 12px; padding: 0 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+.chip.over { background: var(--petal-soft); color: var(--petal); }
+.chip.soon { background: var(--sulfur-soft); color: var(--sulfur); }
+.chip.ok { background: var(--good-soft); color: var(--good); }
+.task.done .txt { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.txt { margin: 2px 0 0; }
+.txt ul { margin: 4px 0 0; padding-left: 20px; }
+.note { grid-column: 2; display: grid; gap: 6px; margin-top: 6px; }
+.note label { font-size: 13px; color: var(--muted); }
+.note textarea { font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; min-height: 2.6em; resize: vertical; line-height: 1.6; }
+.note textarea:focus-visible, .task input:focus-visible, button:focus-visible { outline: 3px solid var(--sulfur); outline-offset: 1px; }
+.note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.note-row button { font: inherit; font-size: 14px; font-weight: 700; background: var(--stream); color: var(--surface); border: 0; border-radius: 6px; padding: 4px 14px; cursor: pointer; }
+.note-row button[hidden] { display: none; }
+.meta { font-size: 13px; color: var(--muted); }
+
+.plain { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.plain ol, .plain ul { margin: 0; padding-left: 22px; }
+.plain li { margin-bottom: 4px; }
+.plain a { color: var(--stream); }
+.check-all { list-style: none; margin: 10px 0 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.check-all li { display: grid; grid-template-columns: 24px auto auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 15px; }
+.check-all li:first-child { border-top: 0; }
+.check-all input { width: 18px; height: 18px; accent-color: var(--good); cursor: pointer; align-self: center; }
+.check-all .who { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.check-all .t { min-width: 0; }
+.check-all .st { grid-column: 4; font-size: 13px; color: var(--stream); }
+.check-all li.done .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.check-all li.overdue .date { color: var(--petal); }
+.me-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+.me-row label { font-weight: 700; }
+.me-row select { font: inherit; font-size: 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; }
+.me-row .hint { font-size: 13px; color: var(--muted); }
+footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">2026 聖誕福音行動 · 11/15（日）</p>
+  <h1>一朵花的時間 待辦追蹤</h1>
+  <p class="sub">11/15 前總召與各組的待辦事項。完成就打勾，並在「辦理情形說明」寫下進度或卡住的地方。</p>
+  <div class="me-row"><label for="me">我是誰</label><select id="me"><option value="">請選擇</option><option>聰貴</option><option>靜雯</option><option>麗娟</option><option>玉枝</option><option>晧屏</option><option>其他同工</option></select><span class="hint">選一次，這台手機會記住</span></div>
+  <p class="status" id="status" aria-live="polite">正在讀取辦理情形…</p>
+</header>
+
+<div class="overview" id="overview">
+  <h2>進度總覽</h2>
+  <div class="total"><span class="big" id="tot">0 / 0</span><span class="muted" id="totNote">已完成</span></div>
+  <div class="bars" id="bars"></div>
+  <div>
+    <h3>逾期未完成</h3>
+    <ul class="due-list" id="overList"></ul>
+  </div>
+  <div>
+    <h3>三天內到期</h3>
+    <ul class="due-list" id="soonList"></ul>
+  </div>
+</div>
+
+<section id="all">
+  <div class="sec-head"><h2>Checklist：全部事項（依日期）</h2><span class="n" id="n-all"></span></div>
+  <p class="sub">總召一眼看完整份進度。勾選會跟下方各組同步；辦理情形說明請到各組的項目下填寫。</p>
+  <ul class="check-all" id="allList"></ul>
+</section>
+
+<div id="groups"></div>
+
+<section>
+  <div class="sec-head"><h2>風險點</h2></div>
+  <div class="plain">
+    <ol>
+      <li>講員和主持人還沒定：11/3 前定不下來，11/6 的信息大綱和 11/8 的彩排都會跟著延。</li>
+      <li>還有兩件事沒人負責：雨天備案的最終決定、每人一張書籤要不要做。建議 11/3 前由總召指派。</li>
+      <li>手作免費之後：參加者不用付材料費，預算缺口會比會議時算的再多一些。11/5 定資金來源時，要用最新人數重算。</li>
+      <li>印製檔案時間很緊：晧屏 11/3 給組名，總召 11/4 交出底卡、花瓣、站牌檔，11/5 交出名牌檔，麗娟和晧屏 11/6 就要印好。任何一環晚一天，印製就跟著晚一天。</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>會後彩蛋：看羊咩咩</h2></div>
+  <div class="plain">
+    <ul>
+      <li>地點：25.127012770808967, 121.50643368675107（<a href="https://www.google.com/maps/dir/?api=1&amp;origin=25.1263292,121.5039805&amp;destination=25.127012770808967,121.50643368675107&amp;travelmode=walking" target="_blank" rel="noopener">從對味廚房出發的 Google 地圖步行路線</a>，直線約 260 公尺）</li>
+      <li>負責：總召 聰貴、現場執行組 靜雯</li>
+    </ul>
+  </div>
+</section>
+
+<footer>依「11月15日前各組待辦」整理，2026/11/1 版。勾選與辦理情形說明存在總召的 Google 試算表，每 30 秒自動更新。</footer>
+</div>
+
+<script>
+(function () {
+  var GROUPS = [
+    { id: "chief", name: "總召", lead: "聰貴", tasks: [
+      ["a1", "2026-11-01", "23:59 報名截止。網站沒自動關閉的話，手動關掉"],
+      ["c3", "2026-11-04", "建立「一朵花的時間」LINE 群組（參加者加同工），設定只有管理員能改群組名稱和公告，第一則訊息說明群組用途；邀請連結交給各邀請人轉發"],
+      ["c10", "2026-11-04", "提供經文拼花 PPT 檔給麗娟：A3 底卡 6 張（含每組花名）、花瓣 18 片"],
+      ["c11", "2026-11-04", "提供三站 A3 站牌 PPT 檔給晧屏：正面各站 QR Code、背面解說說明，貼珍珠板兩面"],
+      ["c4", "2026-11-05", "資金缺口來源定案"],
+      ["c12", "2026-11-05", "提供名牌套印檔案給麗娟（依分組名單套印姓名與組名）"],
+      ["c5", "2026-11-08", "主持試走加流程彩排，各組回報進度；試走最後從對味廚房走一次到會後彩蛋地點，抓步行時間"],
+      ["c6", "2026-11-10", "核對入群名單，還沒入群的人請邀請人個別轉達通知"],
+      ["c7", "2026-11-10", "手機闖關遊戲正式版部署到 gospel-beitou-2026.web.app/game/，用 iOS 和 Android 各掃一次站牌 QR Code 測試"],
+      ["c8", "2026-11-13", "線上總確認會，20 分鐘，逐組過一次清單"],
+      ["c9", "2026-11-15", "當天總控，每個時段提前 5 分鐘提醒主持人；16:30 跟靜雯一起帶會後彩蛋"]
+    ]},
+    { id: "site", name: "現場執行組", lead: "靜雯", tasks: [
+      ["c2", "2026-11-03", "如果餐廳那四項（總價上限、同工和兒童是否計入、訂金與取消、最終人數期限）還沒書面確認，這天補齊"],
+      ["s1", "2026-11-04", "排桌表，一組一桌、共 6 桌，跟晧屏的分組同步"],
+      ["s2", "2026-11-05", "回報餐廳最終人數（含同工、兒童）、素食份數、過敏資訊"],
+      ["s3", "2026-11-05", "通知小志老師最終人數、桌數、進場時間，並約好 16:15 收尾"],
+      ["s4", "2026-11-08", "場地彩排，招待 3 人到位；測試 LINE 直播投影（投影機、HDMI、Wi-Fi、插座）"],
+      ["s5", "2026-11-08", "跟總召一起走會後彩蛋路線，決定帶路同工，確認是否需要先跟羊的主人打招呼、有沒有開放時段"],
+      ["s6", "2026-11-14", "物資清點，包括名牌、簽到表、手機架"],
+      ["s7", "2026-11-15", "10:00 到餐廳佈置，10:30 招待 2 人在奇岩站；16:30 以後帶想去的朋友到會後彩蛋地點"]
+    ]},
+    { id: "admin", name: "行政財務組", lead: "麗娟", tasks: [
+      ["a2", "2026-11-02", "匯出報名名單，交給靜雯和晧屏，附上飲食禁忌"],
+      ["a3", "2026-11-04", "完成轉帳對帳，提醒還沒繳費的人"],
+      ["a4", "2026-11-06", "依總召提供的套印檔，印製名牌和分組名單"],
+      ["a5", "2026-11-06", "依總召提供的 PPT 檔，經文拼花完成", ["A3 底卡 6 張，每組一張，印上該組花名，A3 護貝並貼珍珠板", "花瓣 18 片，三站各 6 片，裁切、背面貼雙面膠貼紙", "建議另備空白底卡 1 張、每站花瓣 1 片"]],
+      ["a6", "2026-11-10", "闖關小獎品採購完成。三站、三梯隊，共 9 場比賽，每場一份給勝隊，另外備 1 到 2 份"],
+      ["a7", "2026-11-12", "底卡、花瓣、小獎品交給晧屏"],
+      ["a8", "2026-11-12", "第一次行前通知（發在「一朵花的時間」LINE 群組），同時告訴每個人自己的組名，並提醒帶充飽電的手機和行動電源"],
+      ["a9", "2026-11-14", "第二次行前通知，附集合地點、雨天備案、會後彩蛋地點"],
+      ["a10", "2026-11-15", "11:30 在餐廳入口設收費台"]
+    ]},
+    { id: "worship", name: "敬拜信息組", lead: "玉枝", tasks: [
+      ["w1", "2026-11-03", "確定主持人、講員、詩歌帶領和伴奏"],
+      ["w2", "2026-11-06", "選好詩歌，做歌詞投影檔；講員提交信息大綱，內容要接續約翰福音 3:16 那朵花"],
+      ["w3", "2026-11-08", "流程彩排，信息要控制在 15 到 20 分鐘"],
+      ["w4", "2026-11-12", "關懷卡印製完成，數量為報名人數加一成"],
+      ["w5", "2026-11-15", "10:00 音響試音，13:00 主持心靈交流"]
+    ]},
+    { id: "quest", name: "闖關破冰組", lead: "晧屏", tasks: [
+      ["q1", "2026-11-03", "關主 3 人、小隊長 6 人的名單交給總召；6 個組名定案，交給總召製作底卡檔"],
+      ["q2", "2026-11-04", "跟靜雯完成分組名單"],
+      ["q3", "2026-11-06", "依總召提供的 PPT 檔，三站站牌印成 A3（正面 QR Code、背面解說說明），護貝後貼在珍珠板兩面"],
+      ["q4", "2026-11-08", "試走", ["三站都要確認手機收訊良好", "用手機實際跑一次闖關遊戲，確認每站實體遊戲 4 分鐘、手機比賽 3 分鐘夠用", "實際貼一次花瓣，確認雙面膠貼紙在護貝底卡上黏得牢", "實測步行時間，確認第二站的正式名稱和第三站的大樹樹種"]],
+      ["q5", "2026-11-12", "關主熟讀解說稿，跑一次輪站；小隊長提醒組員帶行動電源，沒有手機的人跟同組的人一起看"],
+      ["q6", "2026-11-14", "站牌、每站 6 片花瓣、小獎品分裝，交給各站關主；6 張底卡交給小隊長"],
+      ["q7", "2026-11-15", "09:50 關主到站佈置，10:40 三梯同時出發；每組闖完一站，就把該站的花瓣貼上底卡"]
+    ]}
+  ];
+  var WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+  var state = {};          // taskId -> {done, note, by, at}
+  var canWrite = true;
+  var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsJ5yVqELNQRPebo8u8SdrpDHOohOnUu3_Wdx3GY7vOlMh3AGspKgWMFk98hU3214e/exec";
+  var els = {};            // taskId -> {li, cb, ta, btn, meta, chip}
+  var saving = {};
+
+  function todayStr() {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    } catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function dayDiff(a, b) { return Math.round((Date.parse(a + "T00:00:00Z") - Date.parse(b + "T00:00:00Z")) / 86400000); }
+  function fmtDate(d) { var dt = new Date(d + "T00:00:00Z"); return (dt.getUTCMonth() + 1) + "/" + dt.getUTCDate() + "（" + WEEK[dt.getUTCDay()] + "）"; }
+  function fmtTime(iso) {
+    try { return new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)); }
+    catch (e) { return ""; }
+  }
+  function setStatus(msg, warn) { var s = document.getElementById("status"); s.textContent = msg; s.className = "status" + (warn ? " warn" : ""); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function build() {
+    var root = document.getElementById("groups");
+    GROUPS.forEach(function (g) {
+      var sec = el("section"); sec.id = "g-" + g.id;
+      var head = el("div", "sec-head");
+      head.appendChild(el("h2", null, g.name + "　" + g.lead));
+      var n = el("span", "n"); n.id = "n-" + g.id; head.appendChild(n);
+      sec.appendChild(head);
+      var ul = el("ul", "tasks");
+      g.tasks.forEach(function (t) {
+        var id = t[0];
+        var li = el("li", "task");
+        var cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "cb-" + id;
+        cb.setAttribute("aria-label", "完成：" + t[2]);
+        var body = el("div", "body");
+        var l1 = el("div", "line1");
+        l1.appendChild(el("span", "date", fmtDate(t[1])));
+        var chip = el("span", "chip"); chip.hidden = true; l1.appendChild(chip);
+        body.appendChild(l1);
+        var txt = el("div", "txt"); txt.appendChild(document.createTextNode(t[2]));
+        if (t[3]) { var sub = el("ul"); t[3].forEach(function (s) { sub.appendChild(el("li", null, s)); }); txt.appendChild(sub); }
+        body.appendChild(txt);
+        var note = el("div", "note");
+        var lab = el("label", null, "辦理情形說明"); lab.htmlFor = "note-" + id;
+        var ta = document.createElement("textarea"); ta.id = "note-" + id; ta.rows = 1; ta.placeholder = "例如：已完成、進行中、卡在哪裡、需要誰協助";
+        var row = el("div", "note-row");
+        var btn = el("button", null, "儲存說明"); btn.type = "button"; btn.hidden = true;
+        var meta = el("span", "meta");
+        row.appendChild(btn); row.appendChild(meta);
+        note.appendChild(lab); note.appendChild(ta); note.appendChild(row);
+        li.appendChild(cb); li.appendChild(body); li.appendChild(note);
+        ul.appendChild(li);
+        els[id] = { li: li, cb: cb, ta: ta, btn: btn, meta: meta, chip: chip, due: t[1], text: t[2], group: g };
+        cb.addEventListener("change", function () { save(id, { done: cb.checked }); });
+        ta.addEventListener("input", function () { btn.hidden = (ta.value === ((state[id] || {}).note || "")); });
+        btn.addEventListener("click", function () { save(id, { note: ta.value.trim() }); });
+      });
+      sec.appendChild(ul);
+      root.appendChild(sec);
+    });
+    var all = [];
+    GROUPS.forEach(function (g, gi) { g.tasks.forEach(function (t, ti) { all.push({ t: t, g: g, k: gi * 100 + ti }); }); });
+    all.sort(function (a, b) { return a.t[1] < b.t[1] ? -1 : a.t[1] > b.t[1] ? 1 : a.k - b.k; });
+    var al = document.getElementById("allList");
+    all.forEach(function (o) {
+      var id = o.t[0], li = el("li");
+      var cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "all-" + id;
+      cb.setAttribute("aria-label", "完成：" + o.t[2]);
+      li.appendChild(cb);
+      li.appendChild(el("span", "date", fmtDate(o.t[1])));
+      li.appendChild(el("span", "who", o.g.lead));
+      var a = el("a", "t", o.t[2]); a.href = "#cb-" + id; a.style.color = "inherit"; a.style.textDecoration = "none";
+      li.appendChild(a);
+      var st = el("span", "st"); st.hidden = true; li.appendChild(st);
+      al.appendChild(li);
+      els[id].li2 = li; els[id].cb2 = cb; els[id].st2 = st;
+      cb.addEventListener("change", function () { save(id, { done: cb.checked }); });
+    });
+  }
+
+  function render() {
+    var today = todayStr();
+    var total = 0, done = 0, over = [], soon = [], ids = [];
+    GROUPS.forEach(function (g) {
+      var gd = 0;
+      g.tasks.forEach(function (t) {
+        var id = t[0], e = els[id], s = state[id] || {};
+        total++;
+        var d = dayDiff(t[1], today);
+        e.cb.checked = !!s.done;
+        e.li.className = "task";
+        e.chip.hidden = true;
+        if (s.done) { done++; gd++; e.li.classList.add("done"); e.chip.hidden = false; e.chip.className = "chip ok"; e.chip.textContent = "已完成"; }
+        else if (d < 0) { e.li.classList.add("overdue"); e.chip.hidden = false; e.chip.className = "chip over"; e.chip.textContent = "逾期 " + (-d) + " 天"; over.push(t); }
+        else if (d <= 3) { e.li.classList.add("soon"); e.chip.hidden = false; e.chip.className = "chip soon"; e.chip.textContent = d === 0 ? "今天到期" : "剩 " + d + " 天"; soon.push(t); }
+        if (document.activeElement !== e.ta && e.btn.hidden) e.ta.value = s.note || "";
+        if (s.by) ids.push(s.by);
+        e.cb.disabled = !canWrite; e.ta.readOnly = !canWrite;
+        e.cb2.checked = !!s.done; e.cb2.disabled = !canWrite;
+        e.li2.className = s.done ? "done" : (d < 0 ? "overdue" : "");
+        e.st2.hidden = !s.note; e.st2.textContent = s.note ? "辦理情形：" + s.note : "";
+      });
+      document.getElementById("n-" + g.id).textContent = gd + " / " + g.tasks.length + " 完成";
+    });
+    document.getElementById("tot").textContent = done + " / " + total;
+    document.getElementById("n-all").textContent = done + " / " + total + " 完成";
+    document.getElementById("totNote").textContent = "已完成 · 今天 " + fmtDate(today) + " · 距活動 " + Math.max(0, dayDiff("2026-11-15", today)) + " 天";
+    var bars = document.getElementById("bars"); bars.textContent = "";
+    GROUPS.forEach(function (g) {
+      var gd = g.tasks.filter(function (t) { return (state[t[0]] || {}).done; }).length;
+      var b = el("div", "bar");
+      var a = el("a", null, g.name + " " + g.lead); a.href = "#g-" + g.id;
+      var tr = el("div", "track"); var f = el("div", "fill"); f.style.width = Math.round(gd / g.tasks.length * 100) + "%"; tr.appendChild(f);
+      b.appendChild(a); b.appendChild(tr); b.appendChild(el("span", "n", gd + "/" + g.tasks.length));
+      bars.appendChild(b);
+    });
+    fillList("overList", over, "目前沒有逾期的事項。");
+    fillList("soonList", soon, "三天內沒有到期的事項。");
+    renderMeta();
+  }
+
+  function fillList(id, arr, emptyText) {
+    var ul = document.getElementById(id); ul.textContent = "";
+    if (!arr.length) { var li = el("li"); li.appendChild(el("p", "empty", emptyText)); ul.appendChild(li); return; }
+    arr.sort(function (a, b) { return a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0; });
+    arr.forEach(function (t) {
+      var e = els[t[0]], li = el("li");
+      li.appendChild(el("span", "date", fmtDate(t[1])));
+      li.appendChild(el("span", "who", e.group.lead));
+      var a = el("a", "t", e.text); a.href = "#cb-" + t[0]; a.style.color = "inherit";
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+  }
+
+  function renderMeta() {
+    Object.keys(els).forEach(function (id) {
+      var s = state[id];
+      if (!s || !s.at) { els[id].meta.textContent = ""; return; }
+      els[id].meta.textContent = "最後更新：" + (s.by || "同工") + "，" + fmtTime(s.at);
+    });
+  }
+
+  function getMe() { try { return localStorage.getItem("flowerTodoMe") || ""; } catch (e) { return ""; } }
+  function setMe(v) { try { localStorage.setItem("flowerTodoMe", v); } catch (e) {} }
+
+  function api(method, payload) {
+    var opt = method === "POST"
+      ? { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) }
+      : { method: "GET" };
+    var url = method === "GET" ? SCRIPT_URL + "?t=" + Date.now() : SCRIPT_URL;
+    return fetch(url, opt).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) throw new Error((j && j.error) || "fail");
+      return j.data || {};
+    });
+  }
+
+  function load(quiet) {
+    if (!SCRIPT_URL) { canWrite = false; setStatus("尚未連上試算表，目前只能看待辦項目。", true); render(); return; }
+    return api("GET").then(function (data) {
+      state = data;
+      setStatus("已同步，" + fmtTime(new Date().toISOString()) + " 更新。完成就打勾，並寫下辦理情形。");
+      render();
+    }, function () { if (!quiet) setStatus("暫時讀不到辦理情形，顯示的可能不是最新狀態。", true); });
+  }
+
+  function save(id, patch) {
+    if (!SCRIPT_URL) { setStatus("尚未連上試算表，這次的變更沒有存下來。", true); render(); return; }
+    var me = document.getElementById("me").value;
+    if (!me) { setStatus("請先在上面選「我是誰」，再打勾或儲存說明。", true); document.getElementById("me").focus(); render(); return; }
+    if (saving[id]) { saving[id].then(function () { save(id, patch); }); return; }
+    var cur = state[id] || {};
+    var next = { id: id, done: !!cur.done, note: cur.note || "", by: me, task: els[id].text };
+    if (patch.done !== undefined) next.done = patch.done;
+    if (patch.note !== undefined) next.note = patch.note;
+    if (next.done === !!cur.done && next.note === (cur.note || "")) { els[id].btn.hidden = true; return; }
+    setStatus("儲存中…");
+    saving[id] = api("POST", next).then(function (data) {
+      state = data;
+      els[id].btn.hidden = true;
+      setStatus("已儲存。");
+      render();
+    }, function () {
+      setStatus("儲存失敗，請稍後再試一次。", true);
+      render();
+    }).then(function () { delete saving[id]; });
+  }
+
+  var meSel = document.getElementById("me");
+  meSel.value = getMe();
+  meSel.addEventListener("change", function () { setMe(meSel.value); });
+
+  build();
+  render();
+  load(false);
+  setInterval(function () { if (!document.hidden) load(true); }, 30000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) load(true); });
+})();
+</script>
+</body>
+</html>
